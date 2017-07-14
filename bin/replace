@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+
+executing=false
+
+ARGF.each do |line|
+  case line
+  when /FROM centos/
+    puts 'FROM ubuntu:16.04'
+  when /LABEL maintainer/
+    puts 'LABEL maintainer "Hao Hong <agate.hao@gmail.com>"'
+  when /ENV JAVA_HOME/
+    puts 'ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/jre'
+  when /RUN yum/
+    executing = true
+    puts 'RUN apt-get update -y && apt-get install -y openjdk-8-jdk-headless curl wget && apt-get clean'
+    puts
+  when /RUN groupadd/
+    executing = true
+    app = line.match(/RUN groupadd [-a-z]+ [\d]+ (\w+)/)[1]
+    extra_options = case app
+                    when 'logstash'
+                      '--no-create-home'
+                    when 'kibana'
+                      '--no-create-home'
+                    else
+                      ''
+                    end
+    puts "RUN groupadd --gid 1000 #{app} && adduser --uid 1000 --gid 1000 --home /usr/share/#{app} --disabled-password --gecos '' #{extra_options} #{app}"
+    puts
+  when /x-pack/
+    case line
+    when /^\s*#/
+      puts line.gsub(/\s*x-pack\s*/, ' ')
+    when /RUN for PLUGIN in/
+      puts line.gsub(/\s*x-pack\s*/, ' ')
+    when /x-pack/
+      # skip
+    else
+      puts line
+    end
+  else
+    if executing
+      if line =~ /^\s*(ENV|RUN|WORKDIR|COPY|ADD|USER|#)/
+        executing = false
+        puts line
+      end
+    else
+      puts line
+    end
+  end
+end

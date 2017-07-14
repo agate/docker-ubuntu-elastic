@@ -1,0 +1,18 @@
+---
+version: '2'
+services:
+  elasticsearch:
+    build:
+      context: elasticsearch
+    image: agate/ubuntu-elasticsearch:5.5.0
+    network_mode: host
+  logstash:
+    build:
+      context: logstash
+    image: agate/ubuntu-logstash:5.5.0
+    network_mode: host
+  kibana:
+    build:
+      context: kibana
+    image: agate/ubuntu-kibana:5.5.0
+    network_mode: host

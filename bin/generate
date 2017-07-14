@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+set -ex
+
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP=$1
+BRANCH=$2
+REPO_DIR=${BASE_DIR}/tmp/${APP}-docker
+
+rm -rf $REPO_DIR
+git clone --depth 1 --branch $BRANCH git@github.com:elastic/${APP}-docker.git $REPO_DIR
+
+if [[ -f $REPO_DIR/version.json ]]; then
+  VERSION=$(cat $REPO_DIR/version.json | jq -r .branches.\"$BRANCH\")
+elif [[ -f $REPO_DIR/version.txt ]]; then
+  VERSION=$(cat $REPO_DIR/version.txt)
+else
+  echo 'NO VERSION FOUND'
+  exit 1
+fi
+VERSION_DIR=${BASE_DIR}/${VERSION}
+BUILD_DIR=${REPO_DIR}/build/${APP}
+TARGET_DIR=${VERSION_DIR}/${APP}
+DOCKER_COMPOSE_FILE=${VERSION_DIR}/docker-compose.yml
+
+cd $REPO_DIR
+make dockerfile
+
+if [[ $APP == 'logstash' ]]; then
+  make env2yaml
+fi
+
+cat $BUILD_DIR/Dockerfile | $BASE_DIR/bin/replace > $BUILD_DIR/Dockerfile.ubuntu
+mv $BUILD_DIR/Dockerfile.ubuntu $BUILD_DIR/Dockerfile
+
+rm -rf $TARGET_DIR
+mkdir -p $TARGET_DIR
+cp -r $BUILD_DIR/* $TARGET_DIR/
+find $TARGET_DIR | grep x-pack | xargs rm -rf
+
+if [[ ! -f $VERSION_DIR/docker-compose.yml ]]; then
+  cat <<END > $VERSION_DIR/docker-compose.yml
+---
+version: '2'
+services:
+END
+fi
+
+if [[ ! -f $DOCKER_COMPOSE_FILE ]]; then
+  cat <<END > $DOCKER_COMPOSE_FILE
+---
+version: '2'
+services:
+END
+fi
+
+if [[ ! `grep ${APP} ${DOCKER_COMPOSE_FILE}` ]]; then
+  cat <<END >> $DOCKER_COMPOSE_FILE
+  ${APP}:
+    build:
+      context: ${APP}
+    image: agate/ubuntu-${APP}:${VERSION}
+    network_mode: host
+END
+fi
