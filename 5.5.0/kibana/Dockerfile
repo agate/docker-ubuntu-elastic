@@ -29,3 +29,9 @@ RUN groupadd --gid 1000 kibana && adduser --uid 1000 --gid 1000 --home /usr/shar
 USER kibana
 
 CMD /usr/local/bin/kibana-docker
+
+USER root
+
+RUN chown kibana:kibana -R /usr/share/kibana
+
+USER kibana

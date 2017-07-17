@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+app = nil
 executing=false
 
 ARGF.each do |line|
@@ -48,4 +49,16 @@ ARGF.each do |line|
       puts line
     end
   end
+end
+
+case app
+when 'kibana'
+  puts <<END
+
+USER root
+
+RUN chown kibana:kibana -R /usr/share/kibana
+
+USER kibana
+END
 end
